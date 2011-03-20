@@ -22,8 +22,13 @@ class UBColorGui:
 
         self.window       = self.wtree.get_widget("MainWindow")
         self.lampchooser  = self.wtree.get_widget("lampChooser")
+        self.statusbar    = self.wtree.get_widget("statusBar")
         self.colorchooser = self.wtree.get_widget("colorChooser")
         self.colorchooser.connect("color_changed",self.new_color)
+
+        self.status = {'connection': None}
+        self.status['connection'] = self.statusbar.get_context_id("connection status")
+        self.status['connection']
 
         self.lampstore    = gtk.ListStore(gobject.TYPE_STRING)
         self.lampchooser.set_model(self.lampstore)
@@ -36,6 +41,7 @@ class UBColorGui:
 
         self.window.show_all()
 
+        self.set_status("connection", "0 lamps found")
         loop = DBusGMainLoop()
         bus = dbus.SystemBus(mainloop=loop)
         self.server = dbus.Interface(bus.get_object(avahi.DBUS_NAME, '/'), 'org.freedesktop.Avahi.Server')
@@ -44,6 +50,13 @@ class UBColorGui:
                 avahi.PROTO_UNSPEC, TYPE, 'local', dbus.UInt32(0))),
             avahi.DBUS_INTERFACE_SERVICE_BROWSER)
         sbrowser.connect_to_signal("ItemNew", self.mlfound)
+
+    def set_status(self, mid, status):
+        if mid not in self.status:
+            raise ValueError
+        self.statusbar.pop(self.status[mid])
+        self.status[mid] = self.statusbar.push(self.status[mid], status)
+        return self.status[mid]
 
     def mlfound(self, interface, protocol, name, stype, domain, flags):
         print "Found service '%s' type '%s' domain '%s' " % (name, stype, domain)
@@ -56,6 +69,8 @@ class UBColorGui:
         print 'service resolved'
         print 'name:', args[2]
         self.lampchooser.append_text("%s.local" % args[2])
+        self.set_status("connection", "%d lamps found" %
+                len(self.lampchooser.get_model()))
 #        print 'address:', args[7]
 #        print 'port:', args[8]
 
