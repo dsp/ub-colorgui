@@ -19,14 +19,16 @@ icon = "ml_icon.png"
 class UBColorGui(object):
     def __init__(self):
         # Glade setup
-        self.wtree = gtk.glade.XML("ubcolorgui.glade", "MainWindow")
+        builder = gtk.Builder()
+        builder.add_from_file("ubcolorgui.xml")
 
-        self.window = self.wtree.get_widget("MainWindow")
-        self.lampchooser = self.wtree.get_widget("lampChooser")
-        self.statusbar = self.wtree.get_widget("statusBar")
-        self.colorchooser = self.wtree.get_widget("colorChooser")
-        self.code = self.wtree.get_widget("textCode")
-        self.codeRunButton = self.wtree.get_widget("buttonRun")
+        self.window = builder.get_object("MainWindow")
+        self.lampchooser = builder.get_object("lampChooser")
+        self.statusbar = builder.get_object("statusBar")
+        self.colorchooser = builder.get_object("colorChooser")
+        self.code = builder.get_object("textCode")
+        self.codeRunButton = builder.get_object("buttonRun")
+
         self.colorchooser.connect("color_changed",self.new_color)
         self.codeRunButton.connect("clicked", self.run_code)
 
