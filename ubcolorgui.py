@@ -1,6 +1,8 @@
 #!/usr/bin/python
+import pygtk
+pygtk.require("2.0")
 
-import gtk
+import gtk, gtk.glade, gtk.gdk
 import sys
 import dbus, gobject, avahi
 from dbus.mainloop.glib import DBusGMainLoop
@@ -9,33 +11,32 @@ import uberbus.moodlamp
 TYPE = "_moodlamp._udp"
 #TODO: Text input for fadetime
 t = 0.5
-icon = "/usr/share/ub-colorgui/ml_icon.png"
+icon = "./ml_icon.png"
 #TODO: Autodetect lamps using avahi
 #lamps = ["alle.local", "moon.local", "spot.local", "oben.local", "unten.local"]
 
-class UBColorGui(object):
+class UBColorGui:
     def __init__(self, loop):
-        window = gtk.Window()
-        vbox1 = gtk.VBox()
-        hbox1 = gtk.HBox()
-        window.add(vbox1)
-        window.connect("delete_event", gtk.main_quit)
-        window.set_border_width(5)
-        window.set_icon_from_file(icon)
-        color = gtk.ColorSelection()
-        color.connect("color_changed",self.new_color)
-        self.combobox = gtk.combo_box_new_text()
-        self.combobox.set_border_width(5)
-        label = gtk.Label("Selected Lamp:")
-        separator = gtk.HSeparator()
-        vbox1.pack_start(hbox1)
-        hbox1.pack_start(label, False, False, 1)
-        hbox1.pack_start(self.combobox, True, True, 2)
-        vbox1.pack_start(separator)
-        vbox1.pack_start(color,True,True,2)
-        hbox1.set_border_width(5)
-        window.show_all()
+        # GLADE SETUP
+        self.wtree = gtk.glade.XML("ubcolorgui.glade", "MainWindow")
 
+        self.window       = self.wtree.get_widget("MainWindow")
+        self.lampchooser  = self.wtree.get_widget("lampChooser")
+        self.colorchooser = self.wtree.get_widget("colorChooser")
+        self.colorchooser.connect("color_changed",self.new_color)
+
+        self.lampstore    = gtk.ListStore(gobject.TYPE_STRING)
+        self.lampchooser.set_model(self.lampstore)
+
+        cell = gtk.CellRendererText()
+        self.lampchooser.pack_start(cell)
+        self.lampchooser.add_attribute(cell, 'text', 0)
+
+        self.window.connect("delete_event", gtk.main_quit)
+
+        self.window.show_all()
+
+        loop = DBusGMainLoop()
         bus = dbus.SystemBus(mainloop=loop)
         self.server = dbus.Interface(bus.get_object(avahi.DBUS_NAME, '/'), 'org.freedesktop.Avahi.Server')
         sbrowser = dbus.Interface(bus.get_object(avahi.DBUS_NAME,
@@ -54,7 +55,7 @@ class UBColorGui(object):
     def service_resolved(self, *args):
         print 'service resolved'
         print 'name:', args[2]
-        self.combobox.append_text("%s.local" % args[2])
+        self.lampchooser.append_text("%s.local" % args[2])
 #        print 'address:', args[7]
 #        print 'port:', args[8]
 
@@ -63,8 +64,8 @@ class UBColorGui(object):
         print args[0]
 
     def new_color(self, color):
-        model = self.combobox.get_model()
-        index = self.combobox.get_active()
+        model = self.lampchooser.get_model()
+        index = self.lampchooser.get_active()
         if index:
             lamp = model[index][0]
             print "Active lamp: %s" % lamp
