@@ -101,11 +101,13 @@ class UBColorGui:
 
     def fade_color(self, r, g, b, t):
         print "Fade color to 0x%x%x%x" % (r,g,b)
+        self.set_status('color', "Fade to 0x%x%x%x" % (r,g,b))
         self.lamp_cb(
             lambda s: s.timedfade(r,g,b,t))
 
     def set_color(self, r, g, b):
         print "Set color to 0x%x%x%x" % (r,g,b)
+        self.set_status('color', "Set to 0x%x%x%x" % (r,g,b))
         self.lamp_cb(
             lambda s: s.setcolor(r,g,b))
 
