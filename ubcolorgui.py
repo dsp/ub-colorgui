@@ -2,7 +2,7 @@
 import pygtk
 pygtk.require("2.0")
 
-import gtk, gtk.glade, gtk.gdk
+import gtk, gtk.glade, gtk.gdk, pango
 import sys
 import dbus, gobject, avahi
 from dbus.mainloop.glib import DBusGMainLoop
@@ -20,15 +20,20 @@ class UBColorGui:
         # GLADE SETUP
         self.wtree = gtk.glade.XML("ubcolorgui.glade", "MainWindow")
 
-        self.window       = self.wtree.get_widget("MainWindow")
-        self.lampchooser  = self.wtree.get_widget("lampChooser")
-        self.statusbar    = self.wtree.get_widget("statusBar")
-        self.colorchooser = self.wtree.get_widget("colorChooser")
+        self.window        = self.wtree.get_widget("MainWindow")
+        self.lampchooser   = self.wtree.get_widget("lampChooser")
+        self.statusbar     = self.wtree.get_widget("statusBar")
+        self.colorchooser  = self.wtree.get_widget("colorChooser")
+        self.code          = self.wtree.get_widget("textCode")
+        self.codeRunButton = self.wtree.get_widget("buttonRun")
         self.colorchooser.connect("color_changed",self.new_color)
+        self.codeRunButton.connect("clicked", self.run_code)
 
-        self.status = {'connection': None}
+        self.code.modify_font(pango.FontDescription('monospace 10'))
+
+        self.status = {'connection': None, 'color': None}
         self.status['connection'] = self.statusbar.get_context_id("connection status")
-        self.status['connection']
+        self.status['color'] = self.statusbar.get_context_id("color")
 
         self.lampstore    = gtk.ListStore(gobject.TYPE_STRING)
         self.lampchooser.set_model(self.lampstore)
@@ -78,21 +83,35 @@ class UBColorGui:
         print 'error_handler'
         print args[0]
 
-    def new_color(self, color):
+    def run_code(self, widget):
+        buf = self.code.get_buffer()
+        code = buf.get_text(buf.get_start_iter(), buf.get_end_iter())
+        c = compile(code, '<string>', 'exec')
+        eval(c, {'fadecolor': self.fade_color, 'setcolor': self.set_color})
+
+    def lamp_cb(self, cb):
         model = self.lampchooser.get_model()
         index = self.lampchooser.get_active()
         if index:
             lamp = model[index][0]
-            print "Active lamp: %s" % lamp
             s = uberbus.moodlamp.Moodlamp(lamp, True)
-            c = color.get_current_color()
-            r = c.red/256;
-            g = c.green/256;
-            b = c.blue/256;
             s.connect()
-            s.timedfade(r,g,b,t)
-            print "Setting %s to %s%s%s" % (lamp, hex(r)[2:], hex(g)[2:], hex(b)[2:])
+            cb(s)
             s.disconnect()
+
+    def fade_color(self, r, g, b, t):
+        print "Fade color to 0x%x%x%x" % (r,g,b)
+        self.lamp_cb(
+            lambda s: s.timedfade(r,g,b,t))
+
+    def set_color(self, r, g, b):
+        print "Set color to 0x%x%x%x" % (r,g,b)
+        self.lamp_cb(
+            lambda s: s.setcolor(r,g,b))
+
+    def new_color(self, color):
+        c = color.get_current_color()
+        self.fade_color(c.red/256, c.green/256, c.blue/256, 0.5)
 
 def main():
     loop = DBusGMainLoop()
