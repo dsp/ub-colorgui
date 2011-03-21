@@ -23,30 +23,26 @@ class UBColorGui(object):
         builder.add_from_file("ubcolorgui.xml")
 
         self.window = builder.get_object("MainWindow")
-        self.lampchooser = builder.get_object("lampChooser")
+        self.lampchooser = builder.get_object("lampList")
         self.statusbar = builder.get_object("statusBar")
         self.colorchooser = builder.get_object("colorChooser")
         self.code = builder.get_object("textCode")
         self.codeRunButton = builder.get_object("buttonRun")
+        self.lampList = gtk.ListStore(str)
+
+        self.lampchooser.set_model(self.lampList)
+        self.lampchooser.append_column(gtk.TreeViewColumn("Lampe",
+            gtk.CellRendererText(), text=0))
+        self.code.modify_font(pango.FontDescription('monospace 10'))
 
         self.colorchooser.connect("color_changed",self.new_color)
         self.codeRunButton.connect("clicked", self.run_code)
-
-        self.code.modify_font(pango.FontDescription('monospace 10'))
 
         self.status = {'connection': None, 'color': None}
         self.status['connection'] = self.statusbar.get_context_id("connection status")
         self.status['color'] = self.statusbar.get_context_id("color")
 
-        self.lampstore = gtk.ListStore(gobject.TYPE_STRING)
-        self.lampchooser.set_model(self.lampstore)
-
-        cell = gtk.CellRendererText()
-        self.lampchooser.pack_start(cell)
-        self.lampchooser.add_attribute(cell, 'text', 0)
-
         self.window.connect("delete_event", gtk.main_quit)
-
         self.window.show_all()
 
         self.set_status("connection", "0 lamps found")
@@ -77,7 +73,7 @@ class UBColorGui(object):
 
     def moodlamp_resolved(self, *args):
         """Called when a new lamp was found"""
-        self.lampchooser.append_text("%s.local" % args[2])
+        self.lampList.append("%s.local" % args[2])
         self.set_status("connection",
                 "%d lamps found" % len(self.lampchooser.get_model()))
 
@@ -94,13 +90,18 @@ class UBColorGui(object):
 
     def lamp_cb(self, callback):
         model = self.lampchooser.get_model()
-        index = self.lampchooser.get_active()
-        if index:
-            lamp = model[index][0]
+        def send(model, path, it):
+            lamp = model.get(it, 0)[0]
+            print lamp
             s = uberbus.moodlamp.Moodlamp(lamp, True)
             s.connect()
             callback(s)
             s.disconnect()
+
+        self.lampchooser.get_selection().selected_foreach(send)
+#        if index:
+#            lamp = model[index][0]
+#            s = uberbus.moodlamp.Moodlamp(lamp, True)
 
     def fade_color(self, r, g, b, t):
         print "Fade color to 0x%x%x%x" % (r, g, b)
